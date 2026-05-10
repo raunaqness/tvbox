@@ -157,10 +157,28 @@ class SearchAggregator:
         seen_magnets = set()
         deduped_results = []
         for res in all_results:
-            if res.magnet not in seen_magnets:
+            # Filter out torrents with 0 seeders
+            if res.seeders > 0 and res.magnet not in seen_magnets:
                 seen_magnets.add(res.magnet)
                 deduped_results.append(res)
                 
-        # Rank by seeders descending
-        deduped_results.sort(key=lambda x: x.seeders, reverse=True)
+        def get_sort_key(res: SearchResult) -> tuple:
+            title_lower = res.title.lower()
+            res_str = res.resolution.lower()
+            
+            score = 1
+            if "2160p" in title_lower or "4k" in title_lower or "2160p" in res_str or "4k" in res_str:
+                score = 4
+            elif "1080p" in title_lower or "1080p" in res_str:
+                score = 3
+            elif "720p" in title_lower or "720p" in res_str:
+                score = 2
+                
+            if res.seeders < 5:
+                score -= 1.5
+                
+            return (score, res.seeders)
+
+        # Rank by resolution descending, then seeders descending
+        deduped_results.sort(key=get_sort_key, reverse=True)
         return deduped_results

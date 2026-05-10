@@ -37,6 +37,9 @@ async def fetch_torrent(request: FetchRequest, background_tasks: BackgroundTasks
         
     best_torrent = results[0]
     
+    fallback_magnets = [res.magnet for res in results[1:6]]
+    import json
+    
     gid = download_manager.add_magnet(best_torrent.magnet)
     if not gid:
         raise HTTPException(status_code=500, detail="Failed to add to download manager.")
@@ -50,7 +53,8 @@ async def fetch_torrent(request: FetchRequest, background_tasks: BackgroundTasks
         title=best_torrent.title,
         status="downloading",
         progress_string="0%",
-        download_speed="0 B/s"
+        download_speed="0 B/s",
+        fallback_magnets=json.dumps(fallback_magnets)
     )
     db.add(new_job)
     db.commit()
@@ -98,6 +102,33 @@ async def orchestrate_download_and_upload(task_id: str):
         gid = progress["gid"]
         job.gid = gid
         download_name = progress.get("name")
+        
+        # Auto-Fallback System Check
+        import json
+        from datetime import datetime
+        if progress.get("progress_string") == "0.00%":
+            # If stuck at 0.00% for > 30 minutes (1800 seconds)
+            if (datetime.utcnow() - job.created_at).total_seconds() > 1800:
+                fallback_list = json.loads(job.fallback_magnets) if job.fallback_magnets else []
+                if fallback_list:
+                    download_manager.remove_download(gid)
+                    next_magnet = fallback_list.pop(0)
+                    new_gid = download_manager.add_magnet(next_magnet)
+                    if new_gid:
+                        job.gid = new_gid
+                        job.fallback_magnets = json.dumps(fallback_list)
+                        job.created_at = datetime.utcnow()
+                        db.commit()
+                        db.close()
+                        await asyncio.sleep(5)
+                        continue
+                else:
+                    # No more fallbacks available, fail the job
+                    download_manager.remove_download(gid)
+                    job.status = "failed"
+                    db.commit()
+                    db.close()
+                    return
             
         if progress.get("is_complete"):
             is_complete = True

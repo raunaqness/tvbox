@@ -21,6 +21,7 @@ class Job(Base):
     status = Column(String) # downloading, uploading, completed, failed
     progress_string = Column(String, default="0%")
     download_speed = Column(String, default="0 B/s")
+    fallback_magnets = Column(String, default="[]")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

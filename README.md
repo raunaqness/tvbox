@@ -26,25 +26,26 @@ This spins up 3 containers:
 2. `aria2c` (Download daemon on port 6800)
 3. `prowlarr` (Indexer manager on port 9696)
 
-## ⚠️ Current Known Issue & Troubleshooting
+## ✨ Recent Features & Reliability Upgrades
 
-### **The Problem: Downloads Stuck at 0 B/s**
-Torrents are successfully fetched from the indexers and added to the table, but the download speed remains at `0 B/s` and progress stays at `0%`.
+To maximize system autonomy and download reliability, several advanced features have been implemented:
 
-### **The Cause: ISP BitTorrent Blocking**
-Aggressive Internet Service Providers (ISPs) often use Deep Packet Inspection (DPI) to block DHT (Distributed Hash Table) bootstrap nodes and UDP trackers. While the backend successfully resolves the magnet link, `aria2c` is being actively blocked from connecting to other peers in the swarm by the ISP's firewall.
+- **Intelligent Seeder Scaling (4K Prioritization)**: The search engine dynamically prioritizes 4K/2160p torrents over 1080p versions. However, it applies a heavy penalty to any 4K torrent with fewer than 5 seeders, ensuring the system naturally falls back to a healthy 1080p swarm rather than getting stuck on a dead 4K magnet.
+- **Auto-Fallback System**: When a search is initiated, the backend quietly saves the top 5 alternative magnet links to the database. If a download remains stuck at exactly `0.00%` for 30 minutes, the orchestrator automatically wipes the stalled task from `aria2c`, pops the next best alternative link from the database, and injects it to seamlessly retry with a different swarm.
+- **Task Management**: Fully integrated frontend controls allow users to permanently delete active or stuck tasks, which kills the `aria2c` job and removes it from the database.
+- **Asynchronous Cloud Sync & Retry**: The `rclone` upload sequence runs as an asynchronous background subprocess, ensuring the frontend never freezes. If an upload to Google Drive fails (due to network or config errors), a **Retry** button dynamically appears in the UI to manually restart the transfer.
+- **Strict Local Cleanup**: Upon a successful `rclone move` transfer to Google Drive (with parent directories preserved), a strict Python teardown sequence forcefully wipes the source directory from local storage to prevent disk bloating.
+- **Exposed Peer Connections**: Port `6888` (TCP/UDP) is now fully exposed in the `docker-compose` stack, transforming `aria2c` from a passive leecher into an active node that can accept incoming peer requests, vastly accelerating DHT discovery.
 
-### **How to Fix It**
+## 🛠 Resolved Issues & Troubleshooting
 
-1. **Use a VPN (Recommended)**: 
-   Running a system-wide VPN (or routing the `aria2c` container through a VPN container like `gluetun`) will encrypt all traffic and instantly bypass the ISP block.
+### **Past Issue: Downloads Stuck at 0 B/s**
+Torrents were successfully fetched from the indexers, but the download speed remained at `0 B/s`.
 
-2. **Force BitTorrent Encryption**: 
-   You can attempt to bypass basic ISP inspection by forcing `aria2c` to encrypt its traffic. Modify `aria2-config/aria2.conf` to include:
-   ```ini
-   bt-require-crypto=true
-   bt-min-crypto-level=arc4
-   ```
+### **The Cause & Resolution: ISP BitTorrent Blocking**
+Aggressive Internet Service Providers (ISPs) often use Deep Packet Inspection (DPI) to block DHT bootstrap nodes and UDP trackers. This has been resolved via multiple system configurations:
+1. **BitTorrent Encryption**: `aria2c` is now forced to encrypt its traffic (`bt-require-crypto=true` and `bt-min-crypto-level=arc4`) to bypass basic ISP inspection.
+2. **Fresh Trackers**: A massive list of healthy, unblocked trackers was manually injected into the configuration to bypass dead default trackers.
+3. **Port Forwarding**: The BitTorrent and DHT ports (`6888`) are now correctly exposed to the host network, allowing active peer connections.
 
-3. **Inject Fresh Trackers**: 
-   Often, the default trackers embedded in magnet links are blocked. Supplying `aria2c` with a regularly updated list of unblocked trackers (e.g., from `ngosang/trackerslist`) can help it bootstrap the connection to peers.
+*(Note: If issues persist on restricted networks, routing the `aria2c` container through a VPN container like `gluetun` is still the ultimate fallback.)*

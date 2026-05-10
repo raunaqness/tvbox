@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 
 class UploadManager:
     def __init__(self):
@@ -28,6 +29,13 @@ class UploadManager:
             
             if process.returncode == 0:
                 print(f"Rclone output: {stdout.decode()}")
+                try:
+                    if os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                    else:
+                        os.remove(file_path)
+                except Exception as del_e:
+                    print(f"Failed to delete local path {file_path}: {del_e}")
                 return True
             else:
                 print(f"Rclone failed with code {process.returncode}: {stderr.decode()}")
