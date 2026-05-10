@@ -117,7 +117,7 @@ async def orchestrate_download_and_upload(task_id: str):
     # Trigger Upload Phase
     if download_name:
         download_path = f"{upload_manager.downloads_dir}/{download_name}"
-        success = upload_manager.upload_file(download_path)
+        success = await upload_manager.upload_file(download_path)
         db = SessionLocal()
         job = db.query(Job).filter(Job.id == task_id).first()
         if job:
@@ -130,3 +130,77 @@ async def orchestrate_download_and_upload(task_id: str):
         db.close()
         
     upload_manager.cleanup_empty_dirs()
+
+async def retry_upload_only(task_id: str):
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == task_id).first()
+    if not job:
+        db.close()
+        return
+
+    import os
+    download_name = None
+    if os.path.exists(upload_manager.downloads_dir):
+        for name in os.listdir(upload_manager.downloads_dir):
+            if job.title in name or name in job.title:
+                download_name = name
+                break
+                
+    if not download_name:
+        progress = download_manager.get_progress(job.gid)
+        if progress and progress.get("name"):
+            download_name = progress.get("name")
+            
+    if not download_name:
+        job.status = "failed"
+        db.commit()
+        db.close()
+        return
+        
+    download_path = f"{upload_manager.downloads_dir}/{download_name}"
+    success = await upload_manager.upload_file(download_path)
+    
+    if success:
+        job.status = "completed"
+        download_manager.remove_download(job.gid)
+    else:
+        job.status = "upload_failed"
+        
+    db.commit()
+    db.close()
+    upload_manager.cleanup_empty_dirs()
+
+@router.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == task_id).first()
+    if not job:
+        db.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    if job.gid:
+        download_manager.remove_download(job.gid)
+        
+    db.delete(job)
+    db.commit()
+    db.close()
+    return {"message": "Task deleted"}
+
+@router.post("/api/tasks/{task_id}/retry")
+async def retry_task(task_id: str, background_tasks: BackgroundTasks):
+    db = SessionLocal()
+    job = db.query(Job).filter(Job.id == task_id).first()
+    if not job:
+        db.close()
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    if job.status not in ["upload_failed", "failed"]:
+        db.close()
+        raise HTTPException(status_code=400, detail="Only failed uploads can be retried")
+        
+    job.status = "uploading"
+    db.commit()
+    db.close()
+    
+    background_tasks.add_task(retry_upload_only, task_id)
+    return {"message": "Retry started"}

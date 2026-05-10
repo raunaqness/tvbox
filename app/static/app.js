@@ -98,7 +98,7 @@ function renderTasks(tasks) {
     if (tasks.length === 0) {
         tasksList.innerHTML = `
             <tr id="emptyStateRow">
-                <td colspan="4" class="empty-state">No transfers found. Search for something to get started!</td>
+                <td colspan="5" class="empty-state">No transfers found. Search for something to get started!</td>
             </tr>`;
         return;
     }
@@ -119,6 +119,16 @@ function renderTasks(tasks) {
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">${task.progress_string || '0%'}</span>
                 </td>
                 <td class="task-speed">${task.download_speed || '-'}</td>
+                <td class="task-action">
+                    ${(task.status === 'upload_failed' || task.status === 'failed') ? `
+                    <button class="retry-btn" onclick="retryTask('${task.id}')" title="Retry Upload">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    </button>
+                    ` : ''}
+                    <button class="delete-btn" onclick="deleteTask('${task.id}')" title="Delete Task">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -135,6 +145,48 @@ function showToast(message, isError = false) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+}
+
+// Delete Task
+async function deleteTask(taskId) {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    
+    try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (res.ok) {
+            showToast('Task deleted successfully');
+            pollStatus();
+        } else {
+            const data = await res.json();
+            showToast(`Error: ${data.detail || 'Failed to delete task'}`, true);
+        }
+    } catch (err) {
+        console.error('Delete error:', err);
+        showToast('Failed to delete task.', true);
+    }
+}
+
+// Retry Task
+async function retryTask(taskId) {
+    try {
+        const res = await fetch(`/api/tasks/${taskId}/retry`, {
+            method: 'POST'
+        });
+        
+        if (res.ok) {
+            showToast('Retry started successfully');
+            pollStatus();
+        } else {
+            const data = await res.json();
+            showToast(`Error: ${data.detail || 'Failed to retry task'}`, true);
+        }
+    } catch (err) {
+        console.error('Retry error:', err);
+        showToast('Failed to retry task.', true);
+    }
 }
 
 // Hide dropdown when clicking outside

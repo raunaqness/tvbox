@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database
+jobs.db
+*.sqlite3
+
+# Aria2 dynamically generated state
+aria2-config/aria2.session
+aria2-config/dht.dat
+aria2-config/dht6.dat
+
+# Prowlarr dynamically generated state and logs
+prowlarr-config/logs/
+prowlarr-config/logs.db*
+prowlarr-config/prowlarr.db*
+prowlarr-config/prowlarr.pid
+prowlarr-config/Backups/
+prowlarr-config/UpdateLogs/
+
+# Downloads directory (should not be checked in)
+downloads/
+*.aria2
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

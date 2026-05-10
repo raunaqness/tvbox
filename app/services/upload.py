@@ -1,4 +1,4 @@
-import subprocess
+import asyncio
 import os
 
 class UploadManager:
@@ -6,23 +6,32 @@ class UploadManager:
         self.rclone_remote = os.getenv("RCLONE_REMOTE", "gdrive:/Media")
         self.downloads_dir = os.getenv("DOWNLOADS_DIR", "./downloads")
 
-    def upload_file(self, file_path: str) -> bool:
+    async def upload_file(self, file_path: str) -> bool:
         if not os.path.exists(file_path):
             print(f"File {file_path} does not exist.")
             return False
             
         try:
+            target_path = f"{self.rclone_remote}/{os.path.basename(file_path)}"
+            
             cmd = [
-                "rclone", "move", file_path, self.rclone_remote,
+                "rclone", "move", file_path, target_path,
                 "--delete-empty-src-dirs", "--ignore-existing"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(f"Rclone output: {result.stdout}")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"Rclone failed with code {e.returncode}: {e.stderr}")
-            return False
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                print(f"Rclone output: {stdout.decode()}")
+                return True
+            else:
+                print(f"Rclone failed with code {process.returncode}: {stderr.decode()}")
+                return False
         except Exception as e:
             print(f"Upload error: {e}")
             return False

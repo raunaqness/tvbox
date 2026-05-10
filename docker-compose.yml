@@ -7,6 +7,7 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - ~/.config/rclone/rclone.conf:/root/.config/rclone/rclone.conf:ro
     depends_on:
       - aria2c
       - prowlarr
