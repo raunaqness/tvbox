@@ -22,10 +22,24 @@
             </div>
 
             <div class="dashboard-container">
-                <h2>Active Transfers</h2>
-                <div id="tasksList" class="tasks-list">
-                    <!-- Tasks will be injected here via JS -->
-                    <div class="empty-state">No active downloads. Search for something to get started!</div>
+                <h2>All Transfers</h2>
+                <div class="table-responsive">
+                    <table class="jobs-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksList">
+                            <!-- Tasks will be injected here via JS -->
+                            <tr id="emptyStateRow">
+                                <td colspan="4" class="empty-state">No transfers found. Search for something to get started!</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>

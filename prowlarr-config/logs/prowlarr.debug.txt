@@ -1076,3 +1076,8 @@
 2026-05-10 19:42:35.8|Debug|Cardigann|Downloading Feed https://movies-api.accel.li/api/v2/list_movies.json?query_term=Inception+2010&limit=50&sort_by=date_added&order_by=desc
 2026-05-10 19:42:36.8|Debug|ReleaseSearchService|Total of 3 reports were found for Term: [Inception 2010], Offset: 0, Limit: 0, Categories: [] from 1 indexer(s)
 2026-05-10 19:42:36.8|Debug|Api|[GET] /api/v1/search?query=Inception+2010&type=search: 200.OK (1120 ms)
+2026-05-10 19:51:54.2|Info|ReleaseSearchService|Searching indexer(s): [YTS] for Term: [Inception 2010], Offset: 0, Limit: 0, Categories: []
+2026-05-10 19:51:54.2|Debug|Cardigann|Adding request for YTS: https://movies-api.accel.li/api/v2/list_movies.json?query_term=Inception+2010&limit=50&sort_by=date_added&order_by=desc
+2026-05-10 19:51:54.2|Debug|Cardigann|Downloading Feed https://movies-api.accel.li/api/v2/list_movies.json?query_term=Inception+2010&limit=50&sort_by=date_added&order_by=desc
+2026-05-10 19:51:55.4|Debug|ReleaseSearchService|Total of 3 reports were found for Term: [Inception 2010], Offset: 0, Limit: 0, Categories: [] from 1 indexer(s)
+2026-05-10 19:51:55.4|Debug|Api|[GET] /api/v1/search?query=Inception+2010&type=search: 200.OK (1285 ms)

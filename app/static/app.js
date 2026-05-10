@@ -88,44 +88,42 @@ async function pollStatus() {
     try {
         const res = await fetch('/api/status');
         const data = await res.json();
-        renderTasks(data);
+        renderTasks(data.tasks || []);
     } catch (err) {
         console.error('Status error:', err);
     }
 }
 
-function renderTasks(tasksObj) {
-    const tasks = Object.values(tasksObj);
-    
+function renderTasks(tasks) {
     if (tasks.length === 0) {
-        tasksList.innerHTML = '<div class="empty-state">No active downloads. Search for something to get started!</div>';
+        tasksList.innerHTML = `
+            <tr id="emptyStateRow">
+                <td colspan="4" class="empty-state">No transfers found. Search for something to get started!</td>
+            </tr>`;
         return;
     }
 
-    tasksList.innerHTML = '';
-    
+    let html = '';
     tasks.forEach(task => {
-        const div = document.createElement('div');
-        div.className = 'task-card';
-        
-        let progressNum = parseFloat(task.progress) || 0;
-        if (task.status === 'completed') progressNum = 100;
-        
-        div.innerHTML = `
-            <div class="task-header">
-                <div class="task-title">${task.title}</div>
-                <div class="task-status">${task.status}</div>
-            </div>
-            <div class="progress-track">
-                <div class="progress-fill" style="width: ${progressNum}%"></div>
-            </div>
-            <div class="task-meta">
-                <span>${task.progress}</span>
-                <span>${task.speed || ''}</span>
-            </div>
+        let statusDisplay = task.status;
+        if (statusDisplay === 'upload_failed') statusDisplay = 'upload failed';
+
+        html += `
+            <tr>
+                <td class="task-title" title="${task.title}">${task.title}</td>
+                <td><span class="task-status status-${task.status}">${statusDisplay}</span></td>
+                <td class="progress-cell">
+                    <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
+                        <div style="width: ${task.progress_string || '0%'}; background: linear-gradient(90deg, #6366f1, #a855f7); height: 100%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">${task.progress_string || '0%'}</span>
+                </td>
+                <td class="task-speed">${task.download_speed || '-'}</td>
+            </tr>
         `;
-        tasksList.appendChild(div);
     });
+
+    tasksList.innerHTML = html;
 }
 
 // Toast Notification
