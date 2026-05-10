@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      - aria2c
+      - prowlarr
+    environment:
+      - ARIA2C_HOST=aria2c
+      - ARIA2C_PORT=6800
+      - ARIA2C_SECRET=mysecret
+      - PROWLARR_URL=http://prowlarr:9696
+
+  aria2c:
+    image: p3terx/aria2-pro
+    container_name: aria2c
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - UMASK_SET=022
+      - RPC_SECRET=mysecret
+      - RPC_PORT=6800
+    ports:
+      - "6800:6800"
+    volumes:
+      - ./downloads:/downloads
+      - ./aria2-config:/config
+    restart: unless-stopped
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    ports:
+      - "9696:9696"
+    volumes:
+      - ./prowlarr-config:/config
+    restart: unless-stopped

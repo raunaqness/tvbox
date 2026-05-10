@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Stream</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="background-mesh"></div>
+    <div class="container">
+        <header>
+            <h1>Auto-Stream</h1>
+            <p>Seamlessly find, download, and sync to Google Drive.</p>
+        </header>
+
+        <main>
+            <div class="search-container glass-panel">
+                <input type="text" id="searchInput" placeholder="Search for a movie or TV show..." autocomplete="off">
+                <div id="searchResults" class="results-dropdown hidden"></div>
+            </div>
+
+            <div class="dashboard-container">
+                <h2>Active Transfers</h2>
+                <div id="tasksList" class="tasks-list">
+                    <!-- Tasks will be injected here via JS -->
+                    <div class="empty-state">No active downloads. Search for something to get started!</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
