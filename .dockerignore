@@ -1,0 +1,15 @@
+downloads/
+aria2-config/
+prowlarr-config/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.git
+.gitignore
+jobs.db
+*.log

@@ -47,3 +47,13 @@ services:
     volumes:
       - ./prowlarr-config:/config
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiZGVjNDU2MTViNjhlNzVlZGZhN2YzZmFhYWEyODU3NmMiLCJ0IjoiYzdjOTQxZDctMWFhNC00Yjc3LWJiYzMtODc5MjY2MGY4NmFjIiwicyI6IlkyUTJOVEF6WXpRdE5XTTNPQzAwWXpCbExUazFNREV0T0RZM056VTBPR0UyTWpFMyJ9
+    depends_on:
+      - app

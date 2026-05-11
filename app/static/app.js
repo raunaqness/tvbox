@@ -110,16 +110,16 @@ function renderTasks(tasks) {
 
         html += `
             <tr>
-                <td class="task-title" title="${task.title}">${task.title}</td>
-                <td><span class="task-status status-${task.status}">${statusDisplay}</span></td>
-                <td class="progress-cell">
+                <td class="task-title" title="${task.title}" data-label="Title">${task.title}</td>
+                <td data-label="Status"><span class="task-status status-${task.status}">${statusDisplay}</span></td>
+                <td class="progress-cell" data-label="Progress">
                     <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
                         <div style="width: ${task.progress_string || '0%'}; background: linear-gradient(90deg, #6366f1, #a855f7); height: 100%; transition: width 0.3s ease;"></div>
                     </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">${task.progress_string || '0%'}</span>
                 </td>
-                <td class="task-speed">${task.download_speed || '-'}</td>
-                <td class="task-action">
+                <td class="task-speed" data-label="Speed">${task.download_speed || '-'}</td>
+                <td class="task-action" data-label="Action">
                     ${(task.status === 'upload_failed' || task.status === 'failed') ? `
                     <button class="retry-btn" onclick="retryTask('${task.id}')" title="Retry Upload">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>

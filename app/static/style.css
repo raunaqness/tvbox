@@ -41,7 +41,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 800px;
+    max-width: 1200px;
     padding: 3rem 1.5rem;
     display: flex;
     flex-direction: column;
@@ -331,4 +331,89 @@ header p {
 
 .retry-btn:active {
     transform: scale(0.95);
+}
+
+/* ==========================================================================
+   Responsive Design (Mobile)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .container {
+        padding: 1.5rem 1rem;
+        gap: 1.5rem;
+    }
+
+    header h1 {
+        font-size: 2.2rem;
+    }
+
+    /* Transform Table into Cards */
+    .jobs-table, .jobs-table thead, .jobs-table tbody, .jobs-table th, .jobs-table td, .jobs-table tr {
+        display: block;
+    }
+
+    .jobs-table thead {
+        display: none; /* Hide standard headers */
+    }
+
+    .jobs-table tbody tr {
+        margin-bottom: 1.5rem;
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .jobs-table td {
+        padding: 8px 0;
+        border-bottom: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+    }
+
+    .jobs-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        margin-right: 1rem;
+    }
+
+    .jobs-table .task-title {
+        display: block;
+        font-size: 1.1rem;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding-bottom: 12px;
+        margin-bottom: 8px;
+        width: 100%;
+    }
+    
+    .jobs-table .task-title::before {
+        display: none; /* Don't show "Title:" for the title, it's obvious */
+    }
+
+    .jobs-table .progress-cell {
+        width: 100%;
+    }
+
+    .jobs-table .task-action {
+        width: 100%;
+        justify-content: flex-end;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        margin-top: 8px;
+    }
+
+    /* Search Container Mobile Adjustments */
+    #searchInput {
+        padding: 1rem;
+        font-size: 1.1rem;
+    }
+
+    .result-item {
+        padding: 0.8rem;
+    }
 }
