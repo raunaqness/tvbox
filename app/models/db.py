@@ -22,6 +22,7 @@ class Job(Base):
     progress_string = Column(String, default="0%")
     download_speed = Column(String, default="0 B/s")
     fallback_magnets = Column(String, default="[]")
+    media_type = Column(String, default="movie") # "movie" or "tv"
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

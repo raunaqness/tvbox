@@ -1,51 +1,138 @@
-# Auto-Stream
+# tvbox
 
-A fully containerized, automated media streaming system. This application allows you to search for movies and TV shows, automatically find the best torrents across multiple indexers, download them via `aria2c`, and securely sync them to your Google Drive via `rclone`.
+Your personal, self-hosted media library. Search for a movie or TV show in the browser, let tvbox find and download a suitable release, and move the completed file to Google Drive for playback through Infuse.
 
-## 🏗 Architecture
+> Use tvbox only to download and stream media that you are legally allowed to access. Check your local laws and your VPS provider's acceptable-use policy before enabling torrent traffic.
 
-The system is broken down into highly decoupled, asynchronous components:
+## How it works
 
-- **Frontend UI (Jinja2 & Vanilla JS)**: A responsive, premium "Glassmorphism" interface. It uses debounced AJAX polling to provide a real-time table of all active and historical download jobs.
-- **Backend (FastAPI)**: The central orchestrator. It manages the REST APIs and spawns asynchronous background tasks to monitor downloads.
-- **Database (SQLite + SQLAlchemy)**: Maintains persistent state for all download jobs (`jobs.db`) so historical data survives container restarts.
-- **Search Aggregator (Strategy Pattern)**: Simultaneously queries multiple providers (`YTS`, `Prowlarr`, `ThePirateBay`), deduplicates results by magnet hash, and ranks them by seeders to ensure maximum download speed.
-- **Download Engine (Aria2c)**: A lightweight, multi-protocol download utility controlled via the `aria2p` Python wrapper.
-- **Cloud Sync (Rclone)**: Automatically executes a subprocess `rclone move` to securely transfer completed downloads directly to Google Drive, cleaning up local storage afterward.
+![tvbox architecture diagram](docs/images/tvbox-architecture.png)
 
-## 🚀 Deployment
+- **FastAPI and Jinja2** provide the web interface and API.
+- **TMDB** supplies titles, posters, and other metadata.
+- **Prowlarr and direct search providers** collect torrent candidates.
+- **aria2c** downloads the selected release.
+- **SQLite and SQLAlchemy** persist download history and status.
+- **rclone** moves completed downloads to Google Drive and removes the local copy.
+- **Cloudflare Tunnel** can expose the password-protected app without opening the web port publicly.
+- **Infuse** connects to Google Drive and provides the final browsing and playback experience.
 
-The entire stack is containerized and orchestrated via `docker-compose`.
+## Features
+
+- Movie and TV autocomplete powered by TMDB
+- Concurrent torrent search, deduplication, and seeder-aware ranking
+- Preference for healthy 4K releases with automatic 1080p fallback
+- Automatic retry with another candidate when a download remains stalled
+- Live progress, speed, history, retry, and deletion controls
+- Asynchronous Google Drive uploads
+- Automatic VPS storage cleanup after a successful upload
+- Password-protected browser access
+- Docker Compose deployment
+
+## Requirements
+
+- A Linux VPS with Docker and Docker Compose
+- A domain managed by Cloudflare
+- A Cloudflare account with access to Cloudflare Tunnel
+- A Google Drive account with enough storage
+- An Infuse account and a supported playback device
+- TMDB and Prowlarr API keys
+- `rclone` configured on the VPS with a remote named `gdrive`
+
+VPS disks are often small. Leave enough free space for the largest file you expect to download because tvbox stores each download locally before uploading it.
+
+## Quick start
+
+1. Clone the repository on the VPS:
+
+   ```bash
+   git clone <repository-url> tvbox
+   cd tvbox
+   ```
+
+2. Configure Google Drive and name the rclone remote `gdrive`:
+
+   ```bash
+   rclone config
+   ```
+
+3. Create `.env` in the project root:
+
+   ```dotenv
+   TMDB_API_KEY=your_tmdb_api_key
+   PROWLARR_API_KEY=your_prowlarr_api_key
+   APP_PASSWORD=use_a_long_unique_password
+   SECRET_KEY=generate_a_long_random_value
+   RCLONE_REMOTE=gdrive:/Media
+   ```
+
+4. Review `docker-compose.yml`, especially its ports, aria2 RPC secret, rclone configuration path, and Cloudflare Tunnel token. Do not commit real credentials.
+
+5. Build and start the stack:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+6. Configure indexers in Prowlarr at `http://<vps-ip>:9696`. If you obtained the Prowlarr API key after starting the stack, add it to `.env` and restart the app:
+
+   ```bash
+   docker compose restart app
+   ```
+
+7. Point a Cloudflare Tunnel hostname at `http://app:8000`, then open that hostname and sign in with `APP_PASSWORD`.
+
+8. Add the same Google Drive account to Infuse and select the folder configured by `RCLONE_REMOTE`.
+
+The stack also includes FlareSolverr for indexers that require it. Prowlarr, aria2 RPC, and FlareSolverr are administrative services; restrict their ports with your VPS firewall rather than exposing them to the public internet.
+
+## Configuration
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `TMDB_API_KEY` | TMDB search and metadata | None |
+| `PROWLARR_API_KEY` | Prowlarr API access | None |
+| `PROWLARR_URL` | Internal Prowlarr URL | `http://localhost:9696` |
+| `ARIA2C_HOST` | aria2 RPC host | `http://localhost` |
+| `ARIA2C_PORT` | aria2 RPC port | `6800` |
+| `ARIA2C_SECRET` | aria2 RPC secret | None |
+| `APP_PASSWORD` | Web login password | `admin` |
+| `SECRET_KEY` | Session-signing key | `fallback_secret` |
+| `RCLONE_REMOTE` | Upload destination | `gdrive:/Media` |
+| `DOWNLOADS_DIR` | Local download directory | `./downloads` |
+
+Always override the default password and session secret in production.
+
+## Services
+
+| Service | Role | Default port |
+| --- | --- | --- |
+| `app` | tvbox web app and API | `8000` |
+| `aria2c` | Download engine and RPC server | `6800` |
+| `prowlarr` | Indexer manager | `9696` |
+| `flaresolverr` | Optional anti-bot helper for Prowlarr | `8191` |
+| `cloudflared` | Private remote access tunnel | None |
+
+## Development and tests
+
+Install the Python dependencies and run the test suite:
 
 ```bash
-docker-compose up -d --build
+python -m pip install -r requirements.txt
+PYTHONPATH=. pytest tests/
 ```
 
-This spins up 3 containers:
-1. `tvbox-app-1` (FastAPI + UI on port 8000)
-2. `aria2c` (Download daemon on port 6800)
-3. `prowlarr` (Indexer manager on port 9696)
+## Troubleshooting
 
-## ✨ Recent Features & Reliability Upgrades
+- **Downloads remain at 0 B/s:** Verify that the torrent has active seeders and that TCP/UDP port `6888` is allowed by the VPS firewall. Some providers block torrent traffic entirely.
+- **Prowlarr returns no results:** Confirm that its indexers pass their built-in tests and that `PROWLARR_API_KEY` is correct.
+- **Uploads fail:** Run `rclone lsd gdrive:` on the VPS and confirm that the configuration is mounted inside the app container.
+- **The app is unreachable remotely:** Check the Cloudflare Tunnel route and confirm that its origin points to `http://app:8000`.
+- **Infuse cannot see new files:** Confirm the upload folder in `RCLONE_REMOTE`, then refresh the matching Google Drive share in Infuse.
 
-To maximize system autonomy and download reliability, several advanced features have been implemented:
+## Security notes
 
-- **Intelligent Seeder Scaling (4K Prioritization)**: The search engine dynamically prioritizes 4K/2160p torrents over 1080p versions. However, it applies a heavy penalty to any 4K torrent with fewer than 5 seeders, ensuring the system naturally falls back to a healthy 1080p swarm rather than getting stuck on a dead 4K magnet.
-- **Auto-Fallback System**: When a search is initiated, the backend quietly saves the top 5 alternative magnet links to the database. If a download remains stuck at exactly `0.00%` for 30 minutes, the orchestrator automatically wipes the stalled task from `aria2c`, pops the next best alternative link from the database, and injects it to seamlessly retry with a different swarm.
-- **Task Management**: Fully integrated frontend controls allow users to permanently delete active or stuck tasks, which kills the `aria2c` job and removes it from the database.
-- **Asynchronous Cloud Sync & Retry**: The `rclone` upload sequence runs as an asynchronous background subprocess, ensuring the frontend never freezes. If an upload to Google Drive fails (due to network or config errors), a **Retry** button dynamically appears in the UI to manually restart the transfer.
-- **Strict Local Cleanup**: Upon a successful `rclone move` transfer to Google Drive (with parent directories preserved), a strict Python teardown sequence forcefully wipes the source directory from local storage to prevent disk bloating.
-- **Exposed Peer Connections**: Port `6888` (TCP/UDP) is now fully exposed in the `docker-compose` stack, transforming `aria2c` from a passive leecher into an active node that can accept incoming peer requests, vastly accelerating DHT discovery.
-
-## 🛠 Resolved Issues & Troubleshooting
-
-### **Past Issue: Downloads Stuck at 0 B/s**
-Torrents were successfully fetched from the indexers, but the download speed remained at `0 B/s`.
-
-### **The Cause & Resolution: ISP BitTorrent Blocking**
-Aggressive Internet Service Providers (ISPs) often use Deep Packet Inspection (DPI) to block DHT bootstrap nodes and UDP trackers. This has been resolved via multiple system configurations:
-1. **BitTorrent Encryption**: `aria2c` is now forced to encrypt its traffic (`bt-require-crypto=true` and `bt-min-crypto-level=arc4`) to bypass basic ISP inspection.
-2. **Fresh Trackers**: A massive list of healthy, unblocked trackers was manually injected into the configuration to bypass dead default trackers.
-3. **Port Forwarding**: The BitTorrent and DHT ports (`6888`) are now correctly exposed to the host network, allowing active peer connections.
-
-*(Note: If issues persist on restricted networks, routing the `aria2c` container through a VPN container like `gluetun` is still the ultimate fallback.)*
+- Keep all API keys, tunnel tokens, RPC secrets, and passwords out of Git.
+- Expose the app through Cloudflare Tunnel; do not publicly expose its origin port.
+- Restrict ports `6800`, `8191`, and `9696` to trusted administrators.
+- Rotate any credential that has previously been committed.

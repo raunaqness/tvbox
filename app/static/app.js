@@ -3,7 +3,67 @@ const searchResults = document.getElementById('searchResults');
 const tasksList = document.getElementById('tasksList');
 const toast = document.getElementById('toast');
 
+// Modal Elements
+const torrentModal = document.getElementById('torrentModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const torrentLoader = document.getElementById('torrentLoader');
+const torrentList = document.getElementById('torrentList');
+
+// TV Modal Elements
+const tvModal = document.getElementById('tvModal');
+const closeTvModalBtn = document.getElementById('closeTvModalBtn');
+const tvLoader = document.getElementById('tvLoader');
+const tvContent = document.getElementById('tvContent');
+const seasonGrid = document.getElementById('seasonGrid');
+const episodeList = document.getElementById('episodeList');
+const episodesTitle = document.getElementById('episodesTitle');
+const tvModalTitle = document.getElementById('tvModalTitle');
+
 let debounceTimer;
+let currentFilter = 'all';
+let currentTvShow = null;
+let globalTasks = [];
+
+// Modal Logic
+function openModal() {
+    torrentModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    torrentModal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+function openTvModalHandler() {
+    tvModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTvModal() {
+    tvModal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+if (torrentModal) torrentModal.addEventListener('click', (e) => {
+    if (e.target === torrentModal) closeModal();
+});
+
+if (closeTvModalBtn) closeTvModalBtn.addEventListener('click', closeTvModal);
+if (tvModal) tvModal.addEventListener('click', (e) => {
+    if (e.target === tvModal) closeTvModal();
+});
+
+// Dashboard Filtering
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentFilter = e.target.getAttribute('data-filter');
+        pollStatus(); // re-render
+    });
+});
 
 // Handle Search Input
 searchInput.addEventListener('input', (e) => {
@@ -50,36 +110,329 @@ function renderResults(results) {
             </div>
         `;
         
-        div.addEventListener('click', () => fetchTorrent(item.title, item.year));
+        div.addEventListener('click', () => {
+            if (item.media_type === 'tv') {
+                openTvModal(item.id, item.title, item.year);
+            } else {
+                fetchTorrent(item.title, item.year, 'movie');
+            }
+        });
         searchResults.appendChild(div);
     });
     
     searchResults.classList.remove('hidden');
 }
 
-// Fetch Torrent
-async function fetchTorrent(title, year) {
+// TV Modal Flow
+async function openTvModal(tv_id, title, year) {
     searchInput.value = '';
     searchResults.classList.add('hidden');
-    showToast(`Searching for torrents: ${title}...`);
+    
+    currentTvShow = { title, year };
+    tvModalTitle.textContent = title;
+    
+    seasonGrid.innerHTML = '';
+    episodeList.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.9rem;">Select a season to view episodes.</p>';
+    episodesTitle.textContent = 'Episodes';
+    
+    tvLoader.classList.remove('hidden');
+    tvContent.classList.add('hidden');
+    openTvModalHandler();
+    
+    try {
+        const res = await fetch(`/api/tv/${tv_id}`);
+        const data = await res.json();
+        
+        tvLoader.classList.add('hidden');
+        tvContent.classList.remove('hidden');
+        
+        renderSeasons(tv_id, data.seasons || []);
+    } catch (err) {
+        tvLoader.classList.add('hidden');
+        seasonGrid.innerHTML = `<p style="color: #ff4757;">Failed to load seasons.</p>`;
+        tvContent.classList.remove('hidden');
+    }
+}
+
+function renderSeasons(tv_id, seasons) {
+    seasonGrid.innerHTML = '';
+    seasons.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'season-btn';
+        btn.textContent = `Season ${s.season_number}`;
+        
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.season-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadEpisodes(tv_id, s.season_number);
+        });
+        
+        seasonGrid.appendChild(btn);
+    });
+}
+
+async function loadEpisodes(tv_id, season_number) {
+    episodesTitle.textContent = `Season ${season_number} Episodes`;
+    episodeList.innerHTML = '';
+    const loader = document.getElementById('episodeLoader');
+    loader.classList.remove('hidden');
+    
+    try {
+        const res = await fetch(`/api/tv/${tv_id}/season/${season_number}`);
+        const episodes = await res.json();
+        loader.classList.add('hidden');
+        
+        const showTitleLower = currentTvShow.title.toLowerCase();
+        const showTitleParts = showTitleLower.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+        const seasonPadded = String(season_number).padStart(2, '0');
+        const seasonMatchers = [`s${seasonPadded}`, `season ${season_number}`, `season ${seasonPadded}`];
+        
+        const hasFullSeason = globalTasks.some(t => {
+            if (t.media_type !== 'tv') return false;
+            const tTitleLower = t.title.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+            const containsShow = showTitleParts.every(w => tTitleLower.includes(w));
+            if (!containsShow) return false;
+            // Matches season but does not match an episode pattern
+            return seasonMatchers.some(m => tTitleLower.includes(m.replace(/\s/g, ''))) && !tTitleLower.match(/e\d{1,2}/);
+        });
+
+        const fullSeasonBadge = hasFullSeason ? `<span style="background: rgba(255,255,255,0.1); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px; border: 1px solid rgba(255,255,255,0.2);">✓ Added</span>` : '';
+        
+        // Add "Full Season" button
+        const fullSeasonItem = document.createElement('div');
+        fullSeasonItem.className = 'episode-item';
+        fullSeasonItem.style.flexDirection = 'column';
+        fullSeasonItem.style.alignItems = 'stretch';
+        fullSeasonItem.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div class="episode-info">
+                    <h4>Full Season ${season_number} Pack ${fullSeasonBadge}</h4>
+                    <p>Download the entire season</p>
+                </div>
+                <button class="find-torrents-btn">Find Torrents</button>
+            </div>
+            <div class="inline-torrent-container"></div>
+        `;
+        fullSeasonItem.querySelector('button').addEventListener('click', () => {
+            fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, null, fullSeasonItem.querySelector('.inline-torrent-container'));
+        });
+        episodeList.appendChild(fullSeasonItem);
+        
+        // Add individual episodes
+        episodes.forEach(ep => {
+            const epPadded = String(ep.episode_number).padStart(2, '0');
+            const epMatchers = [`s${seasonPadded}e${epPadded}`, `${season_number}x${epPadded}`];
+            
+            const hasEpisode = hasFullSeason || globalTasks.some(t => {
+                if (t.media_type !== 'tv') return false;
+                const tTitleLower = t.title.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+                const containsShow = showTitleParts.every(w => tTitleLower.includes(w));
+                if (!containsShow) return false;
+                return epMatchers.some(m => tTitleLower.includes(m.replace(/[^a-z0-9]/g, '')));
+            });
+
+            const episodeBadge = hasEpisode ? `<span style="background: rgba(255,255,255,0.1); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px; border: 1px solid rgba(255,255,255,0.2);">✓ Added</span>` : '';
+
+            const item = document.createElement('div');
+            item.className = 'episode-item';
+            item.style.flexDirection = 'column';
+            item.style.alignItems = 'stretch';
+            item.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div class="episode-info">
+                        <h4>${ep.episode_number}. ${ep.name} ${episodeBadge}</h4>
+                    </div>
+                    <button class="find-torrents-btn">Find Torrents</button>
+                </div>
+                <div class="inline-torrent-container"></div>
+            `;
+            item.querySelector('button').addEventListener('click', () => {
+                fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, ep.episode_number, item.querySelector('.inline-torrent-container'));
+            });
+            episodeList.appendChild(item);
+        });
+        
+    } catch (err) {
+        loader.classList.add('hidden');
+        episodeList.innerHTML = `<p style="color: #ff4757;">Failed to load episodes.</p>`;
+    }
+}
+
+
+// Fetch Torrent list inline
+async function fetchTorrentInline(title, year, media_type, season, episode, container) {
+    if (container.innerHTML !== '') {
+        // Toggle visibility if already loaded
+        container.innerHTML = '';
+        return;
+    }
+    
+    container.innerHTML = '<div class="inline-loader">Searching torrents...</div>';
+    
+    try {
+        const payload = { query: title, year: year, season: season };
+        if (episode !== null) payload.episode = episode;
+
+        const res = await fetch('/api/search_torrents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const torrents = await res.json();
+        
+        if (res.ok && torrents.length > 0) {
+            renderInlineTorrents(torrents, media_type, container);
+        } else {
+            container.innerHTML = `<div class="inline-torrent-dropdown"><p style="text-align:center; color: var(--text-secondary);">No torrents found.</p></div>`;
+        }
+    } catch (err) {
+        console.error('Fetch error:', err);
+        container.innerHTML = `<div class="inline-torrent-dropdown"><p style="text-align:center; color: #ff4757;">Failed to fetch torrents.</p></div>`;
+    }
+}
+
+function renderInlineTorrents(torrents, media_type, container) {
+    container.innerHTML = '<div class="inline-torrent-dropdown"></div>';
+    const dropdown = container.querySelector('.inline-torrent-dropdown');
+    
+    torrents.forEach((t, index) => {
+        const item = document.createElement('div');
+        item.className = 'inline-torrent-item';
+        
+        const sizeMb = (t.size_bytes / (1024 * 1024)).toFixed(2);
+        const sizeGb = (t.size_bytes / (1024 * 1024 * 1024)).toFixed(2);
+        const sizeStr = sizeGb >= 1 ? `${sizeGb} GB` : `${sizeMb} MB`;
+        
+        item.innerHTML = `
+            <div class="torrent-title" style="font-size: 0.95rem;">${t.title}</div>
+            <div class="torrent-meta" style="font-size: 0.8rem;">
+                <div class="torrent-badge">${t.resolution || t.source}</div>
+                <div class="seeders">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    ${t.seeders}
+                </div>
+                <div class="size">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    ${sizeStr}
+                </div>
+            </div>
+        `;
+        
+        const remainingFallbacks = torrents.filter((_, i) => i !== index).map(tor => tor.magnet);
+        
+        item.addEventListener('click', () => {
+            startDownload({
+                title: t.title,
+                magnet: t.magnet,
+                fallback_magnets: remainingFallbacks,
+                media_type: media_type
+            });
+        });
+        
+        dropdown.appendChild(item);
+    });
+}
+
+// Fetch Torrent list and show modal
+async function fetchTorrent(title, year, media_type = 'movie', season = null, episode = null) {
+    searchInput.value = '';
+    searchResults.classList.add('hidden');
+    
+    torrentList.innerHTML = '';
+    torrentLoader.classList.remove('hidden');
+    openModal();
+    
+    try {
+        const payload = { query: title, year: year };
+        if (season !== null) payload.season = season;
+        if (episode !== null) payload.episode = episode;
+
+        const res = await fetch('/api/search_torrents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const torrents = await res.json();
+        torrentLoader.classList.add('hidden');
+        
+        if (res.ok && torrents.length > 0) {
+            renderTorrents(torrents, media_type);
+        } else {
+            torrentList.innerHTML = `<p style="text-align:center; color: var(--text-secondary); padding: 2rem;">No torrents found.</p>`;
+        }
+    } catch (err) {
+        console.error('Fetch error:', err);
+        torrentLoader.classList.add('hidden');
+        torrentList.innerHTML = `<p style="text-align:center; color: #ef4444; padding: 2rem;">Failed to fetch torrents.</p>`;
+    }
+}
+
+function renderTorrents(torrents, media_type) {
+    torrentList.innerHTML = '';
+    
+    torrents.forEach((t, index) => {
+        const item = document.createElement('div');
+        item.className = 'torrent-list-item';
+        
+        const sizeMb = (t.size_bytes / (1024 * 1024)).toFixed(2);
+        const sizeGb = (t.size_bytes / (1024 * 1024 * 1024)).toFixed(2);
+        const sizeStr = sizeGb >= 1 ? `${sizeGb} GB` : `${sizeMb} MB`;
+        
+        item.innerHTML = `
+            <div class="torrent-title">${t.title}</div>
+            <div class="torrent-meta">
+                <div class="torrent-badge">${t.resolution || t.source}</div>
+                <div class="seeders">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    ${t.seeders}
+                </div>
+                <div class="leechers">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+                    ${t.leechers}
+                </div>
+                <div class="size">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    ${sizeStr}
+                </div>
+            </div>
+        `;
+        
+        const remainingFallbacks = torrents.filter((_, i) => i !== index).map(tor => tor.magnet);
+        
+        item.addEventListener('click', () => {
+            startDownload({
+                title: t.title,
+                magnet: t.magnet,
+                fallback_magnets: remainingFallbacks,
+                media_type: media_type
+            });
+        });
+        
+        torrentList.appendChild(item);
+    });
+}
+
+async function startDownload(payload) {
+    showToast(`Started downloading: ${payload.title}`);
     
     try {
         const res = await fetch('/api/fetch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: title, year: year })
+            body: JSON.stringify(payload)
         });
         
         const data = await res.json();
         if (res.ok) {
-            showToast(`Started downloading: ${data.torrent.title}`);
             pollStatus();
         } else {
             showToast(`Error: ${data.detail}`, true);
         }
     } catch (err) {
-        console.error('Fetch error:', err);
-        showToast('Failed to start fetch.', true);
+        console.error('Download error:', err);
+        showToast('Failed to start download.', true);
     }
 }
 
@@ -88,14 +441,17 @@ async function pollStatus() {
     try {
         const res = await fetch('/api/status');
         const data = await res.json();
-        renderTasks(data.tasks || []);
+        globalTasks = data.tasks || [];
+        renderTasks(globalTasks);
     } catch (err) {
         console.error('Status error:', err);
     }
 }
 
 function renderTasks(tasks) {
-    if (tasks.length === 0) {
+    const filteredTasks = tasks.filter(t => currentFilter === 'all' || t.media_type === currentFilter);
+
+    if (filteredTasks.length === 0) {
         tasksList.innerHTML = `
             <tr id="emptyStateRow">
                 <td colspan="5" class="empty-state">No transfers found. Search for something to get started!</td>
@@ -104,17 +460,19 @@ function renderTasks(tasks) {
     }
 
     let html = '';
-    tasks.forEach(task => {
+    filteredTasks.forEach(task => {
         let statusDisplay = task.status;
         if (statusDisplay === 'upload_failed') statusDisplay = 'upload failed';
 
+        const badge = task.media_type === 'tv' ? '<span class="media-badge">TV</span>' : '<span class="media-badge">MOVIE</span>';
+
         html += `
             <tr>
-                <td class="task-title" title="${task.title}" data-label="Title">${task.title}</td>
+                <td class="task-title" title="${task.title}" data-label="Title">${badge}${task.title}</td>
                 <td data-label="Status"><span class="task-status status-${task.status}">${statusDisplay}</span></td>
                 <td class="progress-cell" data-label="Progress">
                     <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">
-                        <div style="width: ${task.progress_string || '0%'}; background: linear-gradient(90deg, #6366f1, #a855f7); height: 100%; transition: width 0.3s ease;"></div>
+                        <div style="width: ${task.progress_string || '0%'}; background: var(--text-primary); height: 100%; transition: width 0.3s ease;"></div>
                     </div>
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">${task.progress_string || '0%'}</span>
                 </td>
@@ -139,7 +497,8 @@ function renderTasks(tasks) {
 // Toast Notification
 function showToast(message, isError = false) {
     toast.textContent = message;
-    toast.style.background = isError ? '#ef4444' : '#10b981';
+    toast.style.background = isError ? '#ffffff' : '#ffffff';
+    toast.style.color = '#000000';
     toast.classList.add('show');
     
     setTimeout(() => {

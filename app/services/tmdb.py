@@ -46,3 +46,53 @@ class TMDBClient:
         except Exception as e:
             print(f"TMDB Search Error: {e}")
             return []
+
+    async def get_tv_details(self, tv_id: int) -> Dict[str, Any]:
+        if not self.api_key:
+            return {}
+            
+        url = f"{self.base_url}/tv/{tv_id}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params={"api_key": self.api_key})
+                response.raise_for_status()
+                data = response.json()
+                
+                return {
+                    "id": data.get("id"),
+                    "name": data.get("name"),
+                    "seasons": [
+                        {
+                            "id": s.get("id"),
+                            "name": s.get("name"),
+                            "season_number": s.get("season_number"),
+                            "episode_count": s.get("episode_count")
+                        } for s in data.get("seasons", []) if s.get("season_number") > 0
+                    ]
+                }
+        except Exception as e:
+            print(f"TMDB TV Details Error: {e}")
+            return {}
+            
+    async def get_season_details(self, tv_id: int, season_number: int) -> List[Dict[str, Any]]:
+        if not self.api_key:
+            return []
+            
+        url = f"{self.base_url}/tv/{tv_id}/season/{season_number}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, params={"api_key": self.api_key})
+                response.raise_for_status()
+                data = response.json()
+                
+                return [
+                    {
+                        "id": ep.get("id"),
+                        "name": ep.get("name"),
+                        "episode_number": ep.get("episode_number"),
+                        "overview": ep.get("overview")
+                    } for ep in data.get("episodes", [])
+                ]
+        except Exception as e:
+            print(f"TMDB Season Details Error: {e}")
+            return []

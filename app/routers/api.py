@@ -18,6 +18,14 @@ upload_manager = UploadManager()
 class FetchRequest(BaseModel):
     query: str
     year: str = ""
+    season: int = None
+    episode: int = None
+
+class DownloadRequest(BaseModel):
+    magnet: str
+    title: str
+    fallback_magnets: List[str] = []
+    media_type: str = "movie"
 
 @router.get("/api/search")
 async def search_tmdb(q: str):
@@ -25,22 +33,77 @@ async def search_tmdb(q: str):
         return []
     return await tmdb_client.search(q)
 
-@router.post("/api/fetch")
-async def fetch_torrent(request: FetchRequest, background_tasks: BackgroundTasks):
-    query = request.query
-    if request.year:
-        query = f"{query} {request.year}"
+@router.get("/api/tv/{tv_id}")
+async def get_tv_details(tv_id: int):
+    return await tmdb_client.get_tv_details(tv_id)
+
+@router.get("/api/tv/{tv_id}/season/{season_number}")
+async def get_season_details(tv_id: int, season_number: int):
+    return await tmdb_client.get_season_details(tv_id, season_number)
+
+@router.post("/api/search_torrents")
+async def search_torrents(request: FetchRequest):
+    base_query = request.query
+    if request.year and not request.season:
+        base_query = f"{base_query} {request.year}"
         
-    results = await search_aggregator.aggregate_search(query)
+    results = []
+    if request.season is not None:
+        if request.episode is not None:
+            query = f"{base_query} S{request.season:02d}E{request.episode:02d}"
+            results = await search_aggregator.aggregate_search(query)
+        else:
+            query1 = f"{base_query} S{request.season:02d}"
+            query2 = f"{base_query} Season {request.season}"
+            query3 = f"{base_query} Season {request.season:02d}"
+            
+            res_list = await asyncio.gather(
+                search_aggregator.aggregate_search(query1),
+                search_aggregator.aggregate_search(query2),
+                search_aggregator.aggregate_search(query3),
+                return_exceptions=True
+            )
+            
+            seen = set()
+            for r in res_list:
+                if not isinstance(r, Exception):
+                    for torrent in r:
+                        if torrent.magnet not in seen:
+                            seen.add(torrent.magnet)
+                            results.append(torrent)
+                            
+            # Sort the aggregated results
+            def get_sort_key(res) -> tuple:
+                title_lower = res.title.lower()
+                res_str = res.resolution.lower()
+                score = 1
+                if "2160p" in title_lower or "4k" in title_lower or "2160p" in res_str or "4k" in res_str:
+                    score = 4
+                elif "1080p" in title_lower or "1080p" in res_str:
+                    score = 3
+                elif "720p" in title_lower or "720p" in res_str:
+                    score = 2
+                if res.seeders < 5:
+                    score -= 1.5
+                return (score, res.seeders)
+                
+            results.sort(key=get_sort_key, reverse=True)
+            
+        results = [r for r in results if r.source != "YTS"]
+    else:
+        results = await search_aggregator.aggregate_search(base_query)
+        
     if not results:
         raise HTTPException(status_code=404, detail="No torrents found.")
         
-    best_torrent = results[0]
-    
-    fallback_magnets = [res.magnet for res in results[1:6]]
+    # Return top 10 results
+    return results[:10]
+
+@router.post("/api/fetch")
+async def fetch_torrent(request: DownloadRequest, background_tasks: BackgroundTasks):
     import json
     
-    gid = download_manager.add_magnet(best_torrent.magnet)
+    gid = download_manager.add_magnet(request.magnet)
     if not gid:
         raise HTTPException(status_code=500, detail="Failed to add to download manager.")
         
@@ -50,18 +113,19 @@ async def fetch_torrent(request: FetchRequest, background_tasks: BackgroundTasks
     new_job = Job(
         id=task_id,
         gid=gid,
-        title=best_torrent.title,
+        title=request.title,
         status="downloading",
         progress_string="0%",
         download_speed="0 B/s",
-        fallback_magnets=json.dumps(fallback_magnets)
+        fallback_magnets=json.dumps(request.fallback_magnets),
+        media_type=request.media_type
     )
     db.add(new_job)
     db.commit()
     db.close()
     
     background_tasks.add_task(orchestrate_download_and_upload, task_id)
-    return {"message": "Started", "task_id": task_id, "torrent": best_torrent.model_dump()}
+    return {"message": "Started", "task_id": task_id, "torrent": {"title": request.title, "magnet": request.magnet}}
 
 @router.get("/api/status")
 async def get_status():
@@ -73,7 +137,8 @@ async def get_status():
             "title": j.title,
             "status": j.status,
             "progress_string": j.progress_string,
-            "download_speed": j.download_speed
+            "download_speed": j.download_speed,
+            "media_type": getattr(j, "media_type", "movie")
         } for j in jobs
     ]
     db.close()

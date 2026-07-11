@@ -23,7 +23,14 @@
             </div>
 
             <div class="dashboard-container">
-                <h2>All Transfers</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <h2 style="margin-bottom: 0;">All Transfers</h2>
+                    <div class="filter-group" id="dashboardFilters" style="margin-bottom: 0;">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="movie">Movies</button>
+                        <button class="filter-btn" data-filter="tv">TV Shows</button>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="jobs-table">
                         <thead>
@@ -45,6 +52,53 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Torrent Selection Modal -->
+    <div id="torrentModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3>Select Torrent to Download</h3>
+                <button id="closeModalBtn" class="close-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="torrentLoader" class="loader hidden">Searching for best torrents...</div>
+                <div id="torrentList" class="torrent-list">
+                    <!-- Torrents will be injected here via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TV Selection Modal -->
+    <div id="tvModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3 id="tvModalTitle">Select Season & Episode</h3>
+                <button id="closeTvModalBtn" class="close-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="tvLoader" class="loader hidden">Loading seasons...</div>
+                
+                <div id="tvContent" class="hidden">
+                    <h4 style="margin-bottom: 0.5rem; color: var(--text-secondary);">Seasons</h4>
+                    <div id="seasonGrid" class="season-grid">
+                        <!-- Seasons injected via JS -->
+                    </div>
+                    
+                    <h4 style="margin-bottom: 0.5rem; color: var(--text-secondary); margin-top: 1rem;" id="episodesTitle">Episodes</h4>
+                    <div id="episodeLoader" class="loader hidden">Loading episodes...</div>
+                    <div id="episodeList" class="episode-list">
+                        <!-- Episodes injected via JS -->
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Select a season to view episodes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Notification Toast -->
