@@ -26,6 +26,7 @@ class DownloadRequest(BaseModel):
     title: str
     fallback_magnets: List[str] = []
     media_type: str = "movie"
+    poster_path: str | None = None
 
 @router.get("/api/search")
 async def search_tmdb(q: str):
@@ -118,7 +119,8 @@ async def fetch_torrent(request: DownloadRequest, background_tasks: BackgroundTa
         progress_string="0%",
         download_speed="0 B/s",
         fallback_magnets=json.dumps(request.fallback_magnets),
-        media_type=request.media_type
+        media_type=request.media_type,
+        poster_path=request.poster_path
     )
     db.add(new_job)
     db.commit()
@@ -138,7 +140,8 @@ async def get_status():
             "status": j.status,
             "progress_string": j.progress_string,
             "download_speed": j.download_speed,
-            "media_type": getattr(j, "media_type", "movie")
+            "media_type": getattr(j, "media_type", "movie"),
+            "poster_path": getattr(j, "poster_path", None)
         } for j in jobs
     ]
     db.close()

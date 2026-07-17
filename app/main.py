@@ -10,14 +10,14 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-from app.models.db import Base, engine
+from app.models.db import Base, engine, ensure_job_schema
 from app.routers import api
 
 # Initialize database
-# Initialize database
 Base.metadata.create_all(bind=engine)
+ensure_job_schema()
 
-app = FastAPI(title="Auto-Stream")
+app = FastAPI(title="tvbox")
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):

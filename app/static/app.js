@@ -24,6 +24,20 @@ let currentFilter = 'all';
 let currentTvShow = null;
 let globalTasks = [];
 
+const fallbackPoster = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="92" height="138" viewBox="0 0 92 138"%3E%3Crect width="92" height="138" fill="%23222222"/%3E%3Cpath d="M28 42h36v54H28zM28 56h36M38 42v14M54 42v14" fill="none" stroke="%23888888" stroke-width="4"/%3E%3C/svg%3E';
+
+function getPosterUrl(posterPath, size = 'w92') {
+    return posterPath && /^\/[A-Za-z0-9._/-]+$/.test(posterPath)
+        ? `https://image.tmdb.org/t/p/${size}${posterPath}`
+        : fallbackPoster;
+}
+
+function escapeHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value ?? '';
+    return element.innerHTML;
+}
+
 // Modal Logic
 function openModal() {
     torrentModal.classList.remove('hidden');
@@ -100,7 +114,7 @@ function renderResults(results) {
         const div = document.createElement('div');
         div.className = 'result-item';
         
-        const posterUrl = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : 'https://via.placeholder.com/50x75?text=No+Image';
+        const posterUrl = getPosterUrl(item.poster_path);
         
         div.innerHTML = `
             <img src="${posterUrl}" class="result-poster" alt="${item.title}">
@@ -112,9 +126,9 @@ function renderResults(results) {
         
         div.addEventListener('click', () => {
             if (item.media_type === 'tv') {
-                openTvModal(item.id, item.title, item.year);
+                openTvModal(item.id, item.title, item.year, item.poster_path);
             } else {
-                fetchTorrent(item.title, item.year, 'movie');
+                fetchTorrent(item.title, item.year, 'movie', null, null, item.poster_path);
             }
         });
         searchResults.appendChild(div);
@@ -124,11 +138,11 @@ function renderResults(results) {
 }
 
 // TV Modal Flow
-async function openTvModal(tv_id, title, year) {
+async function openTvModal(tv_id, title, year, poster_path) {
     searchInput.value = '';
     searchResults.classList.add('hidden');
     
-    currentTvShow = { title, year };
+    currentTvShow = { title, year, poster_path };
     tvModalTitle.textContent = title;
     
     seasonGrid.innerHTML = '';
@@ -214,7 +228,7 @@ async function loadEpisodes(tv_id, season_number) {
             <div class="inline-torrent-container"></div>
         `;
         fullSeasonItem.querySelector('button').addEventListener('click', () => {
-            fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, null, fullSeasonItem.querySelector('.inline-torrent-container'));
+            fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, null, currentTvShow.poster_path, fullSeasonItem.querySelector('.inline-torrent-container'));
         });
         episodeList.appendChild(fullSeasonItem);
         
@@ -247,7 +261,7 @@ async function loadEpisodes(tv_id, season_number) {
                 <div class="inline-torrent-container"></div>
             `;
             item.querySelector('button').addEventListener('click', () => {
-                fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, ep.episode_number, item.querySelector('.inline-torrent-container'));
+                fetchTorrentInline(currentTvShow.title, currentTvShow.year, 'tv', season_number, ep.episode_number, currentTvShow.poster_path, item.querySelector('.inline-torrent-container'));
             });
             episodeList.appendChild(item);
         });
@@ -260,7 +274,7 @@ async function loadEpisodes(tv_id, season_number) {
 
 
 // Fetch Torrent list inline
-async function fetchTorrentInline(title, year, media_type, season, episode, container) {
+async function fetchTorrentInline(title, year, media_type, season, episode, poster_path, container) {
     if (container.innerHTML !== '') {
         // Toggle visibility if already loaded
         container.innerHTML = '';
@@ -282,7 +296,7 @@ async function fetchTorrentInline(title, year, media_type, season, episode, cont
         const torrents = await res.json();
         
         if (res.ok && torrents.length > 0) {
-            renderInlineTorrents(torrents, media_type, container);
+            renderInlineTorrents(torrents, media_type, poster_path, container);
         } else {
             container.innerHTML = `<div class="inline-torrent-dropdown"><p style="text-align:center; color: var(--text-secondary);">No torrents found.</p></div>`;
         }
@@ -292,7 +306,7 @@ async function fetchTorrentInline(title, year, media_type, season, episode, cont
     }
 }
 
-function renderInlineTorrents(torrents, media_type, container) {
+function renderInlineTorrents(torrents, media_type, poster_path, container) {
     container.innerHTML = '<div class="inline-torrent-dropdown"></div>';
     const dropdown = container.querySelector('.inline-torrent-dropdown');
     
@@ -326,7 +340,8 @@ function renderInlineTorrents(torrents, media_type, container) {
                 title: t.title,
                 magnet: t.magnet,
                 fallback_magnets: remainingFallbacks,
-                media_type: media_type
+                media_type: media_type,
+                poster_path: poster_path
             });
         });
         
@@ -335,7 +350,7 @@ function renderInlineTorrents(torrents, media_type, container) {
 }
 
 // Fetch Torrent list and show modal
-async function fetchTorrent(title, year, media_type = 'movie', season = null, episode = null) {
+async function fetchTorrent(title, year, media_type = 'movie', season = null, episode = null, poster_path = null) {
     searchInput.value = '';
     searchResults.classList.add('hidden');
     
@@ -358,7 +373,7 @@ async function fetchTorrent(title, year, media_type = 'movie', season = null, ep
         torrentLoader.classList.add('hidden');
         
         if (res.ok && torrents.length > 0) {
-            renderTorrents(torrents, media_type);
+            renderTorrents(torrents, media_type, poster_path);
         } else {
             torrentList.innerHTML = `<p style="text-align:center; color: var(--text-secondary); padding: 2rem;">No torrents found.</p>`;
         }
@@ -369,7 +384,7 @@ async function fetchTorrent(title, year, media_type = 'movie', season = null, ep
     }
 }
 
-function renderTorrents(torrents, media_type) {
+function renderTorrents(torrents, media_type, poster_path) {
     torrentList.innerHTML = '';
     
     torrents.forEach((t, index) => {
@@ -406,7 +421,8 @@ function renderTorrents(torrents, media_type) {
                 title: t.title,
                 magnet: t.magnet,
                 fallback_magnets: remainingFallbacks,
-                media_type: media_type
+                media_type: media_type,
+                poster_path: poster_path
             });
         });
         
@@ -465,10 +481,20 @@ function renderTasks(tasks) {
         if (statusDisplay === 'upload_failed') statusDisplay = 'upload failed';
 
         const badge = task.media_type === 'tv' ? '<span class="media-badge">TV</span>' : '<span class="media-badge">MOVIE</span>';
+        const posterUrl = getPosterUrl(task.poster_path);
+        const safeTitle = escapeHtml(task.title);
 
         html += `
             <tr>
-                <td class="task-title" title="${task.title}" data-label="Title">${badge}${task.title}</td>
+                <td class="task-title" title="${safeTitle}" data-label="Title">
+                    <div class="task-title-content">
+                        <img src="${posterUrl}" class="task-poster" alt="" loading="lazy">
+                        <div class="task-title-details">
+                            ${badge}
+                            <span>${safeTitle}</span>
+                        </div>
+                    </div>
+                </td>
                 <td data-label="Status"><span class="task-status status-${task.status}">${statusDisplay}</span></td>
                 <td class="progress-cell" data-label="Progress">
                     <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">

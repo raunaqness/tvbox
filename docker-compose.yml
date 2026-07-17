@@ -11,10 +11,12 @@ services:
     depends_on:
       - aria2c
       - prowlarr
+    env_file:
+      - .env
     environment:
       - ARIA2C_HOST=aria2c
       - ARIA2C_PORT=6800
-      - ARIA2C_SECRET=mysecret
+      - ARIA2C_SECRET=${ARIA2C_SECRET:-changeme}
       - PROWLARR_URL=http://prowlarr:9696
 
   aria2c:
@@ -24,7 +26,7 @@ services:
       - PUID=1000
       - PGID=1000
       - UMASK_SET=022
-      - RPC_SECRET=mysecret
+      - RPC_SECRET=${ARIA2C_SECRET:-changeme}
       - RPC_PORT=6800
     ports:
       - "6800:6800"
@@ -63,7 +65,9 @@ services:
     container_name: cloudflared
     restart: unless-stopped
     command: tunnel run
+    env_file:
+      - .env
     environment:
-      - TUNNEL_TOKEN=eyJhIjoiZGVjNDU2MTViNjhlNzVlZGZhN2YzZmFhYWEyODU3NmMiLCJ0IjoiYzdjOTQxZDctMWFhNC00Yjc3LWJiYzMtODc5MjY2MGY4NmFjIiwicyI6IlkyUTJOVEF6WXpRdE5XTTNPQzAwWXpCbExUazFNREV0T0RZM056VTBPR0UyTWpFMyJ9
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - app

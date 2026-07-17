@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="tvbox is a self-hosted personal Netflix. Search, download, sync to Google Drive, and watch through Infuse.">
+    <title>tvbox — Your personal, self-hosted Netflix</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="/" class="logo">tvbox</a>
+            <nav>
+                <a href="#architecture">Architecture</a>
+                <a href="https://medium.com/@raunaqness/tvbox-a-self-hosted-netflix-for-your-personal-media-c1900e1a03c6" target="_blank" rel="noopener">Setup guide</a>
+                <a href="https://github.com/raunaqness/tvbox" class="nav-cta" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://raunaqness.com" class="nav-made-by" target="_blank" rel="noopener">Made by Raunaq</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container hero-inner">
+                <p class="eyebrow">Open source · Self-hosted</p>
+                <h1>Your personal Netflix,<br>on your own terms.</h1>
+                <p class="lead">
+                    Search for a movie or TV show, manage downloads from one dashboard,
+                    move files to Google Drive, and watch them through Infuse.
+                </p>
+                <div class="hero-actions">
+                    <a href="https://github.com/raunaqness/tvbox" class="btn btn-primary" target="_blank" rel="noopener">View on GitHub</a>
+                    <a href="https://medium.com/@raunaqness/tvbox-a-self-hosted-netflix-for-your-personal-media-c1900e1a03c6" class="btn btn-secondary" target="_blank" rel="noopener">Read the setup guide</a>
+                </div>
+                <p class="hero-note">Runs locally or on a VPS · Docker Compose · ~1–2 hour setup</p>
+            </div>
+        </section>
+
+        <section class="section section-alt screenshots">
+            <div class="container wide">
+                <div class="phone-shots">
+                    <figure class="phone-shot">
+                        <div class="phone-frame">
+                            <img src="assets/1.PNG" alt="After Setup: Search for Movie / TVShow">
+                        </div>
+                        <figcaption>1. After Setup: Search for Movie / TVShow</figcaption>
+                    </figure>
+                    <figure class="phone-shot">
+                        <div class="phone-frame">
+                            <img src="assets/2.PNG" alt="Downloads start in Background, and gets copied to Google Drive">
+                        </div>
+                        <figcaption>2. Downloads start in Background, and gets copied to Google Drive</figcaption>
+                    </figure>
+                    <figure class="phone-shot">
+                        <div class="phone-frame">
+                            <img src="assets/3.PNG" alt="Watch it anywhere on Infuse (Apple TV supported)">
+                        </div>
+                        <figcaption>3. Watch it anywhere on Infuse (Apple TV supported)</figcaption>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container narrow">
+                <h2>Why tvbox?</h2>
+                <p>
+                    You search for a movie and it is not on any streaming platform in your country.
+                    Google says it is on MUBI or Amazon Prime, but the link opens to “unavailable in your region.”
+                </p>
+                <p>
+                    tvbox brings the workflow into one place:
+                    <strong>search → download → Google Drive → Infuse</strong>.
+                </p>
+            </div>
+        </section>
+
+        <section id="architecture" class="section section-alt">
+            <div class="container">
+                <h2>Architecture</h2>
+                <figure class="diagram">
+                    <img src="assets/tvbox-architecture.png" alt="tvbox architecture: browser to tvbox, download via aria2c, upload to Google Drive, playback via Infuse">
+                </figure>
+                <ol class="steps">
+                    <li>Open tvbox in your browser and search for a title.</li>
+                    <li>tvbox finds releases and starts the download.</li>
+                    <li>Completed files move to Google Drive via rclone.</li>
+                    <li>Watch from Infuse on Apple TV, iPhone, iPad, or Mac.</li>
+                </ol>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2>Features</h2>
+                <ul class="feature-grid">
+                    <li>TMDB-powered search with posters</li>
+                    <li>Live download progress dashboard</li>
+                    <li>Automatic Google Drive uploads</li>
+                    <li>Password-protected web access</li>
+                    <li>Local or 24×7 VPS deployment</li>
+                    <li>Optional remote access via Cloudflare Tunnel</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section section-alt">
+            <div class="container">
+                <h2>Get started</h2>
+                <div class="cards">
+                    <article class="card">
+                        <h3>Local</h3>
+                        <p>Try tvbox on your own computer with Docker. No VPS or domain required.</p>
+                    </article>
+                    <article class="card">
+                        <h3>VPS</h3>
+                        <p>Run downloads 24×7 on a server and access tvbox remotely when you need to.</p>
+                    </article>
+                </div>
+                <p class="center-link">
+                    Clone the repo, copy <code>.env.example</code> to <code>.env</code>, and follow the
+                    <a href="https://medium.com/@raunaqness/tvbox-a-self-hosted-netflix-for-your-personal-media-c1900e1a03c6" target="_blank" rel="noopener">full walkthrough</a>.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <span>tvbox</span>
+            <div class="footer-links">
+                <a href="https://github.com/raunaqness/tvbox" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://medium.com/@raunaqness/tvbox-a-self-hosted-netflix-for-your-personal-media-c1900e1a03c6" target="_blank" rel="noopener">Medium</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
